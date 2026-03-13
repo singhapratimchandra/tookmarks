@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tookmarks — Twitter Bookmarks Report</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --bg-card: #161b22;
+    --bg-card-hover: #1c2129;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent-blue: #58a6ff;
+    --accent-purple: #bc8cff;
+    --accent-green: #3fb950;
+    --accent-orange: #f0883e;
+    --accent-pink: #f778ba;
+    --accent-cyan: #39d2c0;
+    --radius: 12px;
+    --radius-sm: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+/* Header */
+.header {
+    text-align: center;
+    padding: 3rem 0 2rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+}
+.header h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple), var(--accent-pink));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+}
+.header p { color: var(--text-muted); font-size: 1.1rem; }
+
+/* Nav */
+.nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-bottom: 2.5rem;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    padding: 1rem 0;
+    z-index: 100;
+    border-bottom: 1px solid var(--border);
+}
+.nav a {
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+}
+.nav a:hover {
+    color: var(--accent-blue);
+    border-color: var(--accent-blue);
+    background: rgba(88, 166, 255, 0.1);
+}
+
+/* Sections */
+.section {
+    margin-bottom: 3rem;
+    scroll-margin-top: 5rem;
+}
+.section h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.section h2 .sec-icon {
+    font-size: 1.2rem;
+}
+
+/* Stat Grid */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.stat-number {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+.stat-label {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+}
+.accent-blue .stat-number { color: var(--accent-blue); }
+.accent-purple .stat-number { color: var(--accent-purple); }
+.accent-green .stat-number { color: var(--accent-green); }
+.accent-orange .stat-number { color: var(--accent-orange); }
+.accent-pink .stat-number { color: var(--accent-pink); }
+.accent-cyan .stat-number { color: var(--accent-cyan); }
+
+/* Bar Chart */
+.bar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.bar-label {
+    min-width: 140px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.bar-track {
+    flex: 1;
+    height: 24px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+    min-width: 2px;
+}
+.bar-value {
+    min-width: 40px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+/* Keyword Cloud */
+.keyword-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    padding: 1.5rem;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    justify-content: center;
+    align-items: center;
+}
+.kw-tag {
+    color: var(--accent-cyan);
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    background: rgba(57, 210, 192, 0.08);
+    white-space: nowrap;
+}
+
+/* Two Column */
+.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+@media (max-width: 768px) {
+    .two-col { grid-template-columns: 1fr; }
+    .bar-label { min-width: 100px; }
+}
+
+/* Card wrapper */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+}
+.card h3 {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+/* Tweet Cards */
+.tweet-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: border-color 0.2s;
+}
+.tweet-card:hover {
+    border-color: var(--accent-blue);
+}
+.tweet-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+.tweet-author strong {
+    color: var(--text);
+    font-size: 0.95rem;
+}
+.handle {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-left: 0.25rem;
+}
+.tweet-date {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-left: auto;
+}
+.tweet-text {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+    word-break: break-word;
+}
+.tweet-text a {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+.tweet-text a:hover { text-decoration: underline; }
+.tweet-stats {
+    display: flex;
+    gap: 0.75rem;
+}
+.stat-pill {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-weight: 600;
+}
+.stat-pill.likes {
+    color: var(--accent-pink);
+    background: rgba(247, 120, 186, 0.1);
+}
+.stat-pill.rts {
+    color: var(--accent-green);
+    background: rgba(63, 185, 80, 0.1);
+}
+.rank-badge {
+    background: var(--accent-blue);
+    color: var(--bg);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border);
+}
+.tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    padding: 0.75rem 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+    color: var(--accent-blue);
+    border-bottom-color: var(--accent-blue);
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Search */
+.search-box {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.search-box:focus { border-color: var(--accent-blue); }
+.search-box::placeholder { color: var(--text-muted); }
+
+/* Footer */
+.footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    padding: 2rem 0;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+}
+
+.empty { color: var(--text-muted); font-style: italic; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Tookmarks</h1>
+        <p>Your Twitter Bookmarks — Analyzed</p>
+    </div>
+
+    <nav class="nav">
+        <a href="#overview">Overview</a>
+        <a href="#authors">Authors</a>
+        <a href="#topics">Topics</a>
+        <a href="#timeline">Timeline</a>
+        <a href="#activity">Activity</a>
+        <a href="#top-tweets">Top Tweets</a>
+        <a href="#all-bookmarks">All Bookmarks</a>
+    </nav>
+
+    <section class="section" id="overview">
+        <h2><span class="sec-icon">&#x1f4ca;</span> Overview</h2>
+        
+    <div class="stat-grid">
+        <div class="stat-card accent-blue">
+            <div class="stat-number">9</div>
+            <div class="stat-label">Bookmarks</div>
+        </div>
+        <div class="stat-card accent-purple">
+            <div class="stat-number">9</div>
+            <div class="stat-label">Unique Authors</div>
+        </div>
+        <div class="stat-card accent-green">
+            <div class="stat-number">0</div>
+            <div class="stat-label">Total Likes</div>
+        </div>
+        <div class="stat-card accent-orange">
+            <div class="stat-number">0</div>
+            <div class="stat-label">Total Retweets</div>
+        </div>
+        <div class="stat-card accent-pink">
+            <div class="stat-number">0</div>
+            <div class="stat-label">With Media</div>
+        </div>
+        <div class="stat-card accent-cyan">
+            <div class="stat-number">0</div>
+            <div class="stat-label">With Links</div>
+        </div>
+    </div>
+    </section>
+
+    <section class="section" id="authors">
+        <h2><span class="sec-icon">&#x1f464;</span> Top Authors</h2>
+        <div class="card">
+            <div class="bar-row"><span class="bar-label">@hmalviya9</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-purple)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">@_Daniel_Ospina</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-purple)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">@iamcamengland</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-purple)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">@AkshayNarisetti</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-purple)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">@BillionAireSon</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-purple)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">@omoalhajaabiola</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-purple)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">@Aspireachievee</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-purple)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">@heynavtoor</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-purple)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">@obscicron</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-purple)"></div></div><span class="bar-value">1</span></div>
+        </div>
+    </section>
+
+    <section class="section" id="topics">
+        <h2><span class="sec-icon">&#x1f3f7;</span> Topics</h2>
+        <div class="two-col">
+            <div class="card">
+                <h3>Top Hashtags</h3>
+                <p class='empty'>No hashtags found</p>
+            </div>
+            <div class="card">
+                <h3>Top Keywords</h3>
+                <div class="keyword-cloud"><span class="kw-tag" style="font-size:2.20rem;opacity:1.00">gtm</span> <span class="kw-tag" style="font-size:1.70rem;opacity:0.83">morning</span> <span class="kw-tag" style="font-size:1.70rem;opacity:0.83">start</span> <span class="kw-tag" style="font-size:1.70rem;opacity:0.83">month</span> <span class="kw-tag" style="font-size:1.70rem;opacity:0.83">gets</span> <span class="kw-tag" style="font-size:1.70rem;opacity:0.83">into</span> <span class="kw-tag" style="font-size:1.70rem;opacity:0.83">builds</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">follow</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">protocol</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">days</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">depression</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">invest</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">atleast</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">hours</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">daily</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">listen</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">indian</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">classic</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">melodies</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">yaman</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">bilawal</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">todi</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">times</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">noon</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">sleep</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">switch</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">strict</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">fruit</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">milk</span> <span class="kw-tag" style="font-size:1.20rem;opacity:0.67">looking</span></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="timeline">
+        <h2><span class="sec-icon">&#x1f4c5;</span> Timeline</h2>
+        <div class="card">
+            <h3>Bookmarks by Month</h3>
+            <div class="bar-row"><span class="bar-label">2026-03</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-green)"></div></div><span class="bar-value">9</span></div>
+        </div>
+    </section>
+
+    <section class="section" id="activity">
+        <h2><span class="sec-icon">&#x23f0;</span> Activity Patterns</h2>
+        <div class="two-col">
+            <div class="card">
+                <h3>Day of Week</h3>
+                <div class="bar-row"><span class="bar-label">Mon</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-cyan)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">Tue</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-cyan)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">Wed</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-cyan)"></div></div><span class="bar-value">8</span></div>
+<div class="bar-row"><span class="bar-label">Thu</span><div class="bar-track"><div class="bar-fill" style="width:12.5%;background:var(--accent-cyan)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">Fri</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-cyan)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">Sat</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-cyan)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">Sun</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-cyan)"></div></div><span class="bar-value">0</span></div>
+            </div>
+            <div class="card">
+                <h3>Hour of Day (UTC)</h3>
+                <div class="bar-row"><span class="bar-label">00</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">01</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">02</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">03</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">04</span><div class="bar-track"><div class="bar-fill" style="width:50.0%;background:var(--accent-orange)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">05</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">06</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">07</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">08</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">09</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-orange)"></div></div><span class="bar-value">2</span></div>
+<div class="bar-row"><span class="bar-label">10</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">11</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">12</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">13</span><div class="bar-track"><div class="bar-fill" style="width:50.0%;background:var(--accent-orange)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">14</span><div class="bar-track"><div class="bar-fill" style="width:50.0%;background:var(--accent-orange)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">15</span><div class="bar-track"><div class="bar-fill" style="width:50.0%;background:var(--accent-orange)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">16</span><div class="bar-track"><div class="bar-fill" style="width:50.0%;background:var(--accent-orange)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">17</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">18</span><div class="bar-track"><div class="bar-fill" style="width:50.0%;background:var(--accent-orange)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">19</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">20</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">21</span><div class="bar-track"><div class="bar-fill" style="width:50.0%;background:var(--accent-orange)"></div></div><span class="bar-value">1</span></div>
+<div class="bar-row"><span class="bar-label">22</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+<div class="bar-row"><span class="bar-label">23</span><div class="bar-track"><div class="bar-fill" style="width:0.0%;background:var(--accent-orange)"></div></div><span class="bar-value">0</span></div>
+            </div>
+        </div>
+        <div class="two-col" style="margin-top:1.5rem">
+            <div class="card">
+                <h3>Languages</h3>
+                <div class="bar-row"><span class="bar-label">English</span><div class="bar-track"><div class="bar-fill" style="width:100.0%;background:var(--accent-pink)"></div></div><span class="bar-value">9</span></div>
+            </div>
+            <div class="card">
+                <h3>Media Breakdown</h3>
+                <p class='empty'>No media found</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="top-tweets">
+        <h2><span class="sec-icon">&#x1f525;</span> Top Tweets</h2>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab(event, 'tab-likes')">Most Liked</button>
+            <button class="tab-btn" onclick="switchTab(event, 'tab-rts')">Most Retweeted</button>
+        </div>
+        <div id="tab-likes" class="tab-content active">
+            <div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#1</span>
+            <div class="tweet-author">
+                <strong>VD</strong>
+                <span class="handle">@hmalviya9</span>
+            </div>
+            <span class="tweet-date">Mar 05, 2026</span>
+        </div>
+        <div class="tweet-text">just follow this protocol for 90 days, and you would be out of depression. 
+
+but you need to invest atleast 4-5 hours daily for that
+
+&gt; listen to Indian Classic Melodies like Yaman, Bilawal, Todi (3 times in a day / Morning/Noon/before sleep) 
+&gt; switch to strict fruit, and milk</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#2</span>
+            <div class="tweet-author">
+                <strong>Daniel Ospina</strong>
+                <span class="handle">@_Daniel_Ospina</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">I&#x27;m looking to hire a GTM engineer to develop a comprehensive GTM strategy+agentic setup for a B2B fintech company. 
+
+This is a temporary role (a project to start but could become permanent if both parties are happy).
+
+Any recommendations?</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#3</span>
+            <div class="tweet-author">
+                <strong>Cameron England</strong>
+                <span class="handle">@iamcamengland</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">If I wanted to quit my job &amp; build a $50k/month income stream by Summer, here&#x27;s exactly what I&#x27;d do:
+
+1. Niche down to ONE market before the week is over.</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#4</span>
+            <div class="tweet-author">
+                <strong>akshay</strong>
+                <span class="handle">@AkshayNarisetti</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">If you’re going to try, go all the way. Otherwise don’t even start.</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#5</span>
+            <div class="tweet-author">
+                <strong>BillionAireSon </strong>
+                <span class="handle">@BillionAireSon</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">You can now get paid up to $2000/month to train AI
+
+These platforms still pay people as of now.
+
+Hop on before it gets saturated! 
+
+- <a href="http://luel.ai" target="_blank" rel="noopener">http://luel.ai</a>
+- <a href="http://audit.atlascapture.io" target="_blank" rel="noopener">http://audit.atlascapture.io</a>
+- <a href="http://developers.turing.com" target="_blank" rel="noopener">http://developers.turing.com</a>
+
+Note - This isn’t web3 but if you’re smart, you can make BIG MONEY.</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#6</span>
+            <div class="tweet-author">
+                <strong>Omoalhaja</strong>
+                <span class="handle">@omoalhajaabiola</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">This LinkedIn guide is everything you need to land remote, international gigs</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#7</span>
+            <div class="tweet-author">
+                <strong>Aspireachieve</strong>
+                <span class="handle">@Aspireachievee</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">Dumb Ways To Attract Anything
+
+// Thread //</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#8</span>
+            <div class="tweet-author">
+                <strong>Nav Toor</strong>
+                <span class="handle">@heynavtoor</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text"> BREAKING: Someone just turned OpenClaw into an autonomous sales agent
+
+It&#x27;s called Claw GTM.
+
+Paste your website and it builds your outbound pipeline automatically.
+
+I tried it this morning.
+
+From one URL, it:
+
+→ mapped my ideal customer profile
+→ found 47 companies with</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#9</span>
+            <div class="tweet-author">
+                <strong>Obscicron</strong>
+                <span class="handle">@obscicron</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">&gt; be anon
+&gt; studies probability theory since 14
+&gt; gets into MIT
+&gt; recruited by Jane Street
+&gt; 2 years, $350k/yr, 80hr weeks
+&gt; discovers people bet on 15-min BTC markets
+&gt; realizes he’s been training for this his entire life
+&gt; builds Poisson + Kelly model in one weekend
+&gt; loads</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+        </div>
+        <div id="tab-rts" class="tab-content">
+            <div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#1</span>
+            <div class="tweet-author">
+                <strong>VD</strong>
+                <span class="handle">@hmalviya9</span>
+            </div>
+            <span class="tweet-date">Mar 05, 2026</span>
+        </div>
+        <div class="tweet-text">just follow this protocol for 90 days, and you would be out of depression. 
+
+but you need to invest atleast 4-5 hours daily for that
+
+&gt; listen to Indian Classic Melodies like Yaman, Bilawal, Todi (3 times in a day / Morning/Noon/before sleep) 
+&gt; switch to strict fruit, and milk</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#2</span>
+            <div class="tweet-author">
+                <strong>Daniel Ospina</strong>
+                <span class="handle">@_Daniel_Ospina</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">I&#x27;m looking to hire a GTM engineer to develop a comprehensive GTM strategy+agentic setup for a B2B fintech company. 
+
+This is a temporary role (a project to start but could become permanent if both parties are happy).
+
+Any recommendations?</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#3</span>
+            <div class="tweet-author">
+                <strong>Cameron England</strong>
+                <span class="handle">@iamcamengland</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">If I wanted to quit my job &amp; build a $50k/month income stream by Summer, here&#x27;s exactly what I&#x27;d do:
+
+1. Niche down to ONE market before the week is over.</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#4</span>
+            <div class="tweet-author">
+                <strong>akshay</strong>
+                <span class="handle">@AkshayNarisetti</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">If you’re going to try, go all the way. Otherwise don’t even start.</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#5</span>
+            <div class="tweet-author">
+                <strong>BillionAireSon </strong>
+                <span class="handle">@BillionAireSon</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">You can now get paid up to $2000/month to train AI
+
+These platforms still pay people as of now.
+
+Hop on before it gets saturated! 
+
+- <a href="http://luel.ai" target="_blank" rel="noopener">http://luel.ai</a>
+- <a href="http://audit.atlascapture.io" target="_blank" rel="noopener">http://audit.atlascapture.io</a>
+- <a href="http://developers.turing.com" target="_blank" rel="noopener">http://developers.turing.com</a>
+
+Note - This isn’t web3 but if you’re smart, you can make BIG MONEY.</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#6</span>
+            <div class="tweet-author">
+                <strong>Omoalhaja</strong>
+                <span class="handle">@omoalhajaabiola</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">This LinkedIn guide is everything you need to land remote, international gigs</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#7</span>
+            <div class="tweet-author">
+                <strong>Aspireachieve</strong>
+                <span class="handle">@Aspireachievee</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">Dumb Ways To Attract Anything
+
+// Thread //</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#8</span>
+            <div class="tweet-author">
+                <strong>Nav Toor</strong>
+                <span class="handle">@heynavtoor</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text"> BREAKING: Someone just turned OpenClaw into an autonomous sales agent
+
+It&#x27;s called Claw GTM.
+
+Paste your website and it builds your outbound pipeline automatically.
+
+I tried it this morning.
+
+From one URL, it:
+
+→ mapped my ideal customer profile
+→ found 47 companies with</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            <span class="rank-badge">#9</span>
+            <div class="tweet-author">
+                <strong>Obscicron</strong>
+                <span class="handle">@obscicron</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">&gt; be anon
+&gt; studies probability theory since 14
+&gt; gets into MIT
+&gt; recruited by Jane Street
+&gt; 2 years, $350k/yr, 80hr weeks
+&gt; discovers people bet on 15-min BTC markets
+&gt; realizes he’s been training for this his entire life
+&gt; builds Poisson + Kelly model in one weekend
+&gt; loads</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+        </div>
+    </section>
+
+    <section class="section" id="all-bookmarks">
+        <h2><span class="sec-icon">&#x1f4d6;</span> All Bookmarks</h2>
+        <input type="text" class="search-box" id="search" placeholder="Search bookmarks..." oninput="filterTweets()">
+        <div id="tweets-list">
+            <div class="tweet-card">
+        <div class="tweet-header">
+            
+            <div class="tweet-author">
+                <strong>VD</strong>
+                <span class="handle">@hmalviya9</span>
+            </div>
+            <span class="tweet-date">Mar 05, 2026</span>
+        </div>
+        <div class="tweet-text">just follow this protocol for 90 days, and you would be out of depression. 
+
+but you need to invest atleast 4-5 hours daily for that
+
+&gt; listen to Indian Classic Melodies like Yaman, Bilawal, Todi (3 times in a day / Morning/Noon/before sleep) 
+&gt; switch to strict fruit, and milk</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            
+            <div class="tweet-author">
+                <strong>Daniel Ospina</strong>
+                <span class="handle">@_Daniel_Ospina</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">I&#x27;m looking to hire a GTM engineer to develop a comprehensive GTM strategy+agentic setup for a B2B fintech company. 
+
+This is a temporary role (a project to start but could become permanent if both parties are happy).
+
+Any recommendations?</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            
+            <div class="tweet-author">
+                <strong>Omoalhaja</strong>
+                <span class="handle">@omoalhajaabiola</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">This LinkedIn guide is everything you need to land remote, international gigs</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            
+            <div class="tweet-author">
+                <strong>akshay</strong>
+                <span class="handle">@AkshayNarisetti</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">If you’re going to try, go all the way. Otherwise don’t even start.</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            
+            <div class="tweet-author">
+                <strong>Cameron England</strong>
+                <span class="handle">@iamcamengland</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">If I wanted to quit my job &amp; build a $50k/month income stream by Summer, here&#x27;s exactly what I&#x27;d do:
+
+1. Niche down to ONE market before the week is over.</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            
+            <div class="tweet-author">
+                <strong>Nav Toor</strong>
+                <span class="handle">@heynavtoor</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text"> BREAKING: Someone just turned OpenClaw into an autonomous sales agent
+
+It&#x27;s called Claw GTM.
+
+Paste your website and it builds your outbound pipeline automatically.
+
+I tried it this morning.
+
+From one URL, it:
+
+→ mapped my ideal customer profile
+→ found 47 companies with</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            
+            <div class="tweet-author">
+                <strong>Aspireachieve</strong>
+                <span class="handle">@Aspireachievee</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">Dumb Ways To Attract Anything
+
+// Thread //</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            
+            <div class="tweet-author">
+                <strong>Obscicron</strong>
+                <span class="handle">@obscicron</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">&gt; be anon
+&gt; studies probability theory since 14
+&gt; gets into MIT
+&gt; recruited by Jane Street
+&gt; 2 years, $350k/yr, 80hr weeks
+&gt; discovers people bet on 15-min BTC markets
+&gt; realizes he’s been training for this his entire life
+&gt; builds Poisson + Kelly model in one weekend
+&gt; loads</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+<div class="tweet-card">
+        <div class="tweet-header">
+            
+            <div class="tweet-author">
+                <strong>BillionAireSon </strong>
+                <span class="handle">@BillionAireSon</span>
+            </div>
+            <span class="tweet-date">Mar 04, 2026</span>
+        </div>
+        <div class="tweet-text">You can now get paid up to $2000/month to train AI
+
+These platforms still pay people as of now.
+
+Hop on before it gets saturated! 
+
+- <a href="http://luel.ai" target="_blank" rel="noopener">http://luel.ai</a>
+- <a href="http://audit.atlascapture.io" target="_blank" rel="noopener">http://audit.atlascapture.io</a>
+- <a href="http://developers.turing.com" target="_blank" rel="noopener">http://developers.turing.com</a>
+
+Note - This isn’t web3 but if you’re smart, you can make BIG MONEY.</div>
+        <div class="tweet-stats">
+            <span class="stat-pill likes">&hearts; 0</span>
+            <span class="stat-pill rts">&#x21BB; 0</span>
+        </div>
+    </div>
+        </div>
+    </section>
+
+    <div class="footer">
+        Generated by <strong>tookmarks</strong> &middot; March 13, 2026
+    </div>
+</div>
+
+<script>
+function switchTab(e, tabId) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+}
+
+function filterTweets() {
+    const q = document.getElementById('search').value.toLowerCase();
+    const cards = document.querySelectorAll('#tweets-list .tweet-card');
+    cards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = text.includes(q) ? '' : 'none';
+    });
+}
+
+// Animate bars on scroll
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.querySelectorAll('.bar-fill').forEach(bar => {
+                const w = bar.style.width;
+                bar.style.width = '0';
+                requestAnimationFrame(() => { bar.style.width = w; });
+            });
+        }
+    });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.card').forEach(card => observer.observe(card));
+</script>
+</body>
+</html>
