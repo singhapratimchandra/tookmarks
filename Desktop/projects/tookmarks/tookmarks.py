@@ -16,26 +16,65 @@ from html import escape
 # ── Parsing ──────────────────────────────────────────────────────────────────
 
 def parse_bookmarks_file(filepath):
-    """Parse Twitter's bookmarks.js export file."""
+    """Parse Twitter's bookmarks.js export file or scraped JSON."""
     with open(filepath, "r", encoding="utf-8") as f:
         raw = f.read()
 
     # Strip the JS variable assignment: window.YTD.bookmarks.part0 = [...]
-    match = re.match(r"^[^=]+=\s*", raw)
-    if match:
-        raw = raw[match.end():]
+    stripped = raw.strip()
+    if not stripped.startswith("[") and not stripped.startswith("{"):
+        match = re.match(r"^[^=]+=\s*", raw)
+        if match:
+            stripped = raw[match.end():]
 
-    data = json.loads(raw)
+    data = json.loads(stripped)
     tweets = []
     for entry in data:
-        tweet = entry.get("tweet") or entry.get("bookmark", {}).get("tweet")
-        if not tweet:
-            # Try flattened structure
-            if "full_text" in entry:
-                tweet = entry
-        if tweet:
-            tweets.append(normalize_tweet(tweet))
+        # Check if this is our scraped format (has "author_handle" key)
+        if "author_handle" in entry:
+            tweets.append(normalize_scraped_tweet(entry))
+        else:
+            tweet = entry.get("tweet") or entry.get("bookmark", {}).get("tweet")
+            if not tweet:
+                if "full_text" in entry:
+                    tweet = entry
+            if tweet:
+                tweets.append(normalize_tweet(tweet))
     return tweets
+
+
+def normalize_scraped_tweet(t):
+    """Normalize a tweet from our browser-scraped JSON format."""
+    created_dt = None
+    created_str = t.get("created_at", "")
+    if created_str:
+        try:
+            created_dt = datetime.strptime(created_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+        except ValueError:
+            pass
+
+    text = t.get("text", "")
+    hashtags = [tag.lower() for tag in re.findall(r"#(\w+)", text)]
+    urls = re.findall(r"https?://\S+", text)
+
+    # Clean /analytics suffix from tweet URL
+    tweet_url = t.get("url", "")
+    tweet_url = re.sub(r"/analytics$", "", tweet_url)
+
+    return {
+        "id": t.get("id", ""),
+        "text": text,
+        "author_name": t.get("author_name", "Unknown"),
+        "author_handle": t.get("author_handle", "unknown"),
+        "created_at": created_dt,
+        "hashtags": hashtags,
+        "urls": urls,
+        "media_types": [],
+        "favorite_count": 0,
+        "retweet_count": 0,
+        "reply_count": 0,
+        "lang": "",
+    }
 
 
 def normalize_tweet(t):
