@@ -1,0 +1,237 @@
+{
+  "name": "Daily Job Scraper → Google Sheet",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        },
+        "timezone": "Europe/Paris"
+      },
+      "id": "trigger-cron",
+      "name": "Daily 08:00 Paris",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Config",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "read-config",
+      "name": "Read Config Tab",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [460, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CRED",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Convert key/value rows from Config tab into a single config object,\n// then expand keywords into one item per keyword.\nconst cfg = {};\nfor (const item of $input.all()) {\n  const k = (item.json.key || '').toString().trim();\n  const v = (item.json.value || '').toString().trim();\n  if (k) cfg[k] = v;\n}\n\nconst keywords = (cfg.keywords || '')\n  .split(',')\n  .map(s => s.trim())\n  .filter(Boolean);\n\nif (keywords.length === 0) {\n  throw new Error('No keywords found in Config tab. Add a row with key=keywords.');\n}\n\nconst location = cfg.location || '';\nconst max = parseInt(cfg.max_results_per_keyword || '20', 10);\nconst posted = cfg.posted_within || 'past_week';\n\nreturn keywords.map(kw => ({\n  json: {\n    keyword: kw,\n    location,\n    max_results: max,\n    posted_within: posted,\n  },\n}));"
+      },
+      "id": "parse-config",
+      "name": "Parse Config → Keywords",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search.json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "engine", "value": "google_jobs" },
+            { "name": "q", "value": "={{ $json.keyword }}" },
+            { "name": "location", "value": "={{ $json.location }}" },
+            { "name": "chips", "value": "=date_posted:{{ $json.posted_within }}" },
+            { "name": "api_key", "value": "={{ $env.SERPAPI_KEY }}" }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "serpapi-call",
+      "name": "SerpAPI: Google Jobs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Flatten SerpAPI jobs_results into one item per job.\nconst out = [];\nconst now = new Date().toISOString().slice(0, 10);\n\nfor (const item of $input.all()) {\n  const keyword = item.json.keyword || '';\n  const results = item.json.jobs_results || [];\n  const max = item.json.max_results || 20;\n  for (const j of results.slice(0, max)) {\n    const applyLink =\n      (j.apply_options && j.apply_options[0] && j.apply_options[0].link) ||\n      j.share_link ||\n      j.related_links?.[0]?.link ||\n      '';\n    out.push({\n      json: {\n        title: j.title || '',\n        company: j.company_name || '',\n        location: j.location || '',\n        description: j.description || '',\n        apply_link: applyLink,\n        source: (j.via || 'Google Jobs').replace(/^via\\s+/i, ''),\n        date_added: now,\n        keyword,\n        detected_extensions: j.detected_extensions || {},\n      },\n    });\n  }\n}\n\nreturn out;"
+      },
+      "id": "flatten-jobs",
+      "name": "Flatten Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Jobs",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "read-existing",
+      "name": "Read Existing Jobs",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1120, 500],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CRED",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Dedupe new jobs against existing apply links in the Jobs sheet.\nconst existing = new Set();\nfor (const row of $('Read Existing Jobs').all()) {\n  const link = (row.json['Link to Apply'] || row.json.link_to_apply || '').toString().trim();\n  if (link) existing.add(link);\n}\n\nconst fresh = [];\nfor (const item of $('Flatten Jobs').all()) {\n  const link = (item.json.apply_link || '').toString().trim();\n  if (!link) continue;\n  if (existing.has(link)) continue;\n  existing.add(link); // also dedupe within this run\n  fresh.push(item);\n}\n\nreturn fresh;"
+      },
+      "id": "dedupe",
+      "name": "Dedupe vs Sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={{ $env.GEMINI_API_KEY }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"You are a job-listing parser. From the job description below, return STRICT JSON with keys: summary (2-3 sentence plain-English summary of the role), eligibility (one short string with required experience/skills/qualifications, or 'Not specified'), pay_range (e.g. '€60k-€80k' or 'Not specified'). Do not wrap in markdown.\\n\\nTITLE: {{ $json.title }}\\nCOMPANY: {{ $json.company }}\\nDESCRIPTION:\\n{{ $json.description }}\"\n    }]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.2,\n    \"responseMimeType\": \"application/json\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "gemini-extract",
+      "name": "Gemini: Summarize + Extract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge Gemini output back with the original job item, then build the\n// row payload that matches the Jobs sheet column order.\nconst jobs = $('Dedupe vs Sheet').all();\nconst gemResp = $input.all();\n\nconst rows = [];\nfor (let i = 0; i < jobs.length; i++) {\n  const job = jobs[i].json;\n  let summary = '', eligibility = 'Not specified', pay = 'Not specified';\n  try {\n    const text =\n      gemResp[i].json?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';\n    const parsed = JSON.parse(text);\n    summary = parsed.summary || '';\n    eligibility = parsed.eligibility || 'Not specified';\n    pay = parsed.pay_range || 'Not specified';\n  } catch (e) {\n    summary = (job.description || '').slice(0, 280);\n  }\n\n  rows.push({\n    json: {\n      'Title': job.title,\n      'Company': job.company,\n      'Job Description Summary': summary,\n      'Link to Apply': job.apply_link,\n      'Eligibility': eligibility,\n      'Location': job.location,\n      'Pay Range': pay,\n      'Source': job.source,\n      'Date Added': job.date_added,\n      'Status': 'New',\n    },\n  });\n}\n\nreturn rows;"
+      },
+      "id": "build-rows",
+      "name": "Build Sheet Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Jobs",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": []
+        },
+        "options": {}
+      },
+      "id": "append-jobs",
+      "name": "Append to Jobs Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [2000, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CRED",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 08:00 Paris": {
+      "main": [[{ "node": "Read Config Tab", "type": "main", "index": 0 }]]
+    },
+    "Read Config Tab": {
+      "main": [[{ "node": "Parse Config → Keywords", "type": "main", "index": 0 }]]
+    },
+    "Parse Config → Keywords": {
+      "main": [[{ "node": "SerpAPI: Google Jobs", "type": "main", "index": 0 }]]
+    },
+    "SerpAPI: Google Jobs": {
+      "main": [[{ "node": "Flatten Jobs", "type": "main", "index": 0 }]]
+    },
+    "Flatten Jobs": {
+      "main": [[
+        { "node": "Read Existing Jobs", "type": "main", "index": 0 }
+      ]]
+    },
+    "Read Existing Jobs": {
+      "main": [[{ "node": "Dedupe vs Sheet", "type": "main", "index": 0 }]]
+    },
+    "Dedupe vs Sheet": {
+      "main": [[{ "node": "Gemini: Summarize + Extract", "type": "main", "index": 0 }]]
+    },
+    "Gemini: Summarize + Extract": {
+      "main": [[{ "node": "Build Sheet Rows", "type": "main", "index": 0 }]]
+    },
+    "Build Sheet Rows": {
+      "main": [[{ "node": "Append to Jobs Sheet", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris"
+  },
+  "tags": []
+}
